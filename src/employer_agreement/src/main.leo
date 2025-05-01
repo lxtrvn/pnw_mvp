@@ -1,138 +1,124 @@
-import credits.aleo;
-// The 'piggybanker' program.
-program piggybanker.aleo {
+program employer_agreement.aleo {
 
-    const CREDITS_TOKEN_ID: field = 3443843282313283355522573239085696902919850365217539366784739393210722344986field;
-    record Token {
-        owner: address,
-        amount: u128,
-        token_id: field
-    }
-    record Vault {
-        owner: address,
-        amount: u128,
-        token_id: field,
-        start_time: u32,
-        end_time: u32
-    }
-    mapping balance: address => u128;
-
-
-    async transition createvault(height: u32) -> (Vault, Future) {
-        let signer: address = self.signer;
-        let create: Vault = Vault {
-            owner: signer,
-            amount: 0u128,
-            token_id: CREDITS_TOKEN_ID,
-            start_time: height,
-            end_time: height + 3u32
-        };
-        return (create, finalize_createvault(height));
-    }
-    async function finalize_createvault( height: u32) {
-        // Check innput against current block height
-        assert_eq(height, block.height);
-        return; //return the vault.
-      //  Mapping::set(vaultend, signer, block.height + 3456u32);
-
-
-    }
-    async transition privatize(
-
-    recipient: address,
-    public amount: u128
-  ) -> (Token, Future) {
-    let token: Token = Token {
-      owner: self.signer,
-      amount: amount,
-      token_id: CREDITS_TOKEN_ID
-    };
-
-    return (token, finalize_privatize(CREDITS_TOKEN_ID, amount, self.signer));
-  }
-
-  async function finalize_privatize(
-    token_id: field,
-    amount: u128,
-    owner: address
-  ) {
-
-    // Get stored balances for the owner
-    let owner_balance: u128 = Mapping::get_or_use(balance, owner, 0u128);
-    // Check that the owner has enough balance    
-    assert_eq(true, owner_balance >= amount);
-    // Update the owner's balance
-    let new_balance: u128 = owner_balance - amount;
-    balance.set(owner, new_balance);
-    // Check that the token ID is valid     
-    assert_eq(token_id,CREDITS_TOKEN_ID);
-    // Check that the amount is valid
-    assert_eq(true, amount > 0u128);
-  
-  }
-
-    // Deposits some amount of money into the bank.
-    // Returns a new Token with the remaining amount of money.
-    // - `token` : A record containing tokens to deposit.
-    // - `amount`: The amount of tokens to deposit.
-    async transition deposit_again(create: Vault, token: Token,  amount: u128) -> ( Vault, Token,  Future) {
-        
-
-        // Get the vault of the sender.
-        let owner_tokens: u128 = token.amount;
-         let ovault: Vault = Vault {
-            owner: create.owner,
-            amount: create.amount + amount,
-            token_id: create.token_id,
-            start_time: create.start_time,
-            end_time: create.end_time
-
-        };
-        let reciept: Token = Token {
-            owner: token.owner,
-            amount: token.amount - amount,
-            token_id: CREDITS_TOKEN_ID
-        };
-       
-        let sender: address = self.signer;
-        assert_eq(sender, create.owner);
-        // Compute the hash of the token owner.
-        return ( ovault, reciept,  finalize_deposit_again(sender, amount));
-    }
-
-    // Updates on-chain state by the amount of tokens deposited.
-    // - `hash`  : The hash of the token owner.
-    // - `amount`: The amount of tokens that were deposited.
-    async function finalize_deposit_again(sender: address, amount: u128)  {
-
-
-        let sender_old_balance: u128 = balance.get_or_use(sender, 0u128);
-        let sender_new_balance: u128 = sender_old_balance - amount;
-        balance.set(sender, sender_new_balance);
-    }
-    async transition withdraw(ovault: Vault,  amount: u128) -> (  Future) {
-      let vaultbalance: u128 = ovault.amount;
-      assert_eq(true, vaultbalance > 0u128);
-      assert_eq(true, amount <= vaultbalance);
-      let endtime: u32 = ovault.end_time;
-      let ready: Vault = Vault {
-        owner: ovault.owner,
-        amount: ovault.amount - amount,
-        token_id: ovault.token_id,
-        start_time: ovault.start_time,    
-        end_time: ovault.end_time
-      };
-        return  ( finalize_withdraw(self.signer, amount, endtime));
-    }
-    async function finalize_withdraw(owner: address, amount: u128, endtime: u32) {
-        assert_eq(true, block.height > endtime);
-        // Get the vault of the sender.
-        let pubbalance: u128 = balance.get_or_use(owner, 0u128);
-        let newbalance: u128 = pubbalance + amount;
-        balance.set(owner, newbalance); 
-        
-    
-    }
-
-
+ record Employer {
+    owner:address,
+    employer_data: field,
+    block_height: u32
 }
+
+record Worker {
+    owner:address,
+    worker_data: field,
+    block_height: u32
+}
+
+async transition register_employer(owner: address, raw_data: field, height: u32) -> Employer {
+ 
+    let regi: Employer = Employer {
+        owner: self.signer, 
+        employer_data: raw_data,
+        block_height: height
+};  
+    return (regi, finalize_register_employer(employer_data ));
+}
+async function finalize_register_employer(employer_data) {
+    employer_records.set(employer, regi);
+    return;
+}
+async transition link_worker_to_employer(employer: address, worker: address, worker_hash: [u8; 32]) -> Worker {
+
+    let record: Worker = record {
+        employer_data: worker_data.public,
+        salt: salt.private,
+        block_height: height.public,
+        _nonce: random().public
+};
+
+    worker_profiles.set(worker, profile);
+    return profile;
+}
+
+async transition get_employer_data(employer: address) -> Employer {
+    return finalize_get_employer_data(employer);
+}
+
+async function finalize_get_employer_data(employer: address) -> Employer {
+    return employer_records.get(employer);
+}
+
+async transition get_worker_data(employer: address, worker: address) -> Worker {
+    return finalize_get_worker_data(worker);
+}
+
+async function finalize_get_worker_data(worker: address) -> Worker {
+    return worker_profiles.get(worker);
+}
+
+async transition register_employer_ans(employer_ans: [u8; 32], ans_name: [u8]) -> bool {
+    return finalize_register_employer_ans(employer_ans, ans_name);
+}
+
+async function finalize_register_employer_ans(employer_ans: [u8; 32], ans_name: [u8]) -> bool {
+    let encoded_ans: [u8; 32] = encode_ans(ans_name);
+
+    let registry_entry: bool = employer_registry.get_or_use(employer_ans, false);
+    assert(!registry_entry);
+
+    let reverse_entry: [u8; 32] = ans_reverse_lookup.get_or_use(encoded_ans, [
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8
+    ]);
+    assert(reverse_entry == [
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8
+    ]);
+
+    employer_registry.set(employer_ans, true);
+    employer_tax_compliance.set(employer_ans, false);
+    ans_registry.set(employer_ans, encoded_ans);
+    ans_reverse_lookup.set(encoded_ans, employer_ans);
+    return true;
+}
+
+async transition verify_employer_tax(employer_ans: [u8; 32]) -> bool {
+    return finalize_verify_employer_tax(employer_ans);
+}
+
+async function finalize_verify_employer_tax(employer_ans: [u8; 32]) -> bool {
+    let registered: bool = employer_registry.get_or_use(employer_ans, false);
+    assert(registered);
+    employer_tax_compliance.set(employer_ans, true);
+    return true;
+}
+
+async transition finalize_employer_registration(employer_ans: [u8; 32]) -> bool {
+    return finalize_check_employer_registration(employer_ans);
+}
+
+async function finalize_check_employer_registration(employer_ans: [u8; 32]) -> bool {
+    let registered: bool = employer_registry.get_or_use(employer_ans, false);
+    assert(registered);
+    return true;
+}
+
+async transition lookup_employer_by_ans(ans_name: [u8]) -> [u8; 32] {
+    return finalize_lookup_employer_by_ans(ans_name);
+}
+
+async function finalize_lookup_employer_by_ans(ans_name: [u8]) -> [u8; 32] {
+    let encoded_ans: [u8; 32] = encode_ans(ans_name);
+    return ans_reverse_lookup.get_or_use(encoded_ans, [
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8
+    ]);
+}
+
+function encode_ans(ans_name: [u8]) -> [u8; 32] {
+    return hash_to_field(ans_name);
+}}
